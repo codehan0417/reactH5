@@ -1,8 +1,8 @@
 /*
  * @Author: hanlirong
  * @Date: 2025-02-11 12:33:14
- * @LastEditors: 
- * @LastEditTime: 2025-02-11 12:59:23
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2025-02-26 13:03:09
  * @Description: 路由表
  */
 
@@ -41,6 +41,30 @@ const routes: RouteObject[] = [
     loader: LoginLoader,
     action: LoginAction,
     Component: lazy(modules[getPath('login')])
+  },
+  {
+    path: '/face',
+    loader: LoginLoader,
+    action: LoginAction,
+    Component: lazy(modules[getPath('face')])
+  },
+  {
+    path: '/home',
+    loader: LoginLoader,
+    action: LoginAction,
+    Component: lazy(modules[getPath('home')])
+  },
+  {
+    path: '/faceRegean',
+    loader: LoginLoader,
+    action: LoginAction,
+    Component: lazy(modules[getPath('faceCamera')])
+  },
+  {
+    path: '/invite',
+    loader: LoginLoader,
+    action: LoginAction,
+    Component: lazy(modules[getPath('inputInvite')])
   },
   {
     // logout路由只用来退出登录，不展示页面
