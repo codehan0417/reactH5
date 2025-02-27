@@ -2,7 +2,7 @@
  * @Author: hanlirong
  * @Date: 2025-02-19 14:53:30
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2025-02-24 15:43:23
+ * @LastEditTime: 2025-02-27 12:05:00
  * @Description: face
  */
 import { Image, Button } from "@heroui/react";
@@ -50,7 +50,7 @@ export default function FaceRecognitionTab() {
         </div>
         <div className="p-2 flex flex-col  justify-between h-2/4">
           <div className="text-xl">
-            <p>在BioMatrix，</p>你的脸就是你的账户！
+            <p>在ShinraShell，</p>你的脸就是你的账户！
           </div>
           <p className="text-base">即刻扫脸以创建/访问您的账户并领取$POY吧。</p>
           <div className="flex items-center justify-center">
