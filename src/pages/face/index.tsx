@@ -2,13 +2,12 @@
  * @Author: hanlirong
  * @Date: 2025-02-19 14:53:30
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2025-02-27 12:05:00
+ * @LastEditTime: 2025-02-28 14:46:21
  * @Description: face
  */
 import { Image, Button } from "@heroui/react";
 import GiftImag from "@/assets/images/face_scan_black.gif";
 import { useNavigate } from "react-router-dom";
-
 
 export const BackIcon = (props: any) => {
   return (
@@ -36,10 +35,16 @@ export const BackIcon = (props: any) => {
 export default function FaceRecognitionTab() {
   const navigate = useNavigate();
   const backLogin = () => {
-    navigate("/login");
+    navigate("/login", {
+      viewTransition: true,
+      flushSync: true,
+    });
   };
   const handelFace = () => {
-    navigate("/faceRegean");
+    navigate("/faceRegean", {
+      viewTransition: true,
+      flushSync: true,
+    });
   };
   return (
     <>
@@ -56,10 +61,11 @@ export default function FaceRecognitionTab() {
           <div className="flex items-center justify-center">
             <Image className="w-44 h-44" src={GiftImag}></Image>
           </div>
-          <div className="text-center">
+          <div className="text-center m-8">
             <Button
               variant="bordered"
               color="primary"
+              size="lg"
               radius="full"
               onPress={handelFace}>
               开始扫脸

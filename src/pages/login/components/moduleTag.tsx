@@ -2,7 +2,7 @@
  * @Author: hanlirong
  * @Date: 2025-02-20 12:54:10
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2025-02-21 14:40:19
+ * @LastEditTime: 2025-02-28 17:11:36
  * @Description: 请填写
  */
 import { Modal, ModalContent, ModalHeader, ModalBody, Link } from "@heroui/react";
@@ -59,7 +59,10 @@ export default function ModuleTag() {
     });
   };
   const handelLink = () => {
-    navigate("/face");
+    // navigate("/face");
+    navigate("/home",{
+      viewTransition:true
+    });
   };
 
   return (

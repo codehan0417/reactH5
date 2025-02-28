@@ -2,10 +2,10 @@
  * @Author: hanlirong
  * @Date: 2025-02-11 13:02:05
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2025-02-26 13:12:02
+ * @LastEditTime: 2025-02-28 12:33:03
  * @Description: 登录
  */
-import { Button, Image, Checkbox } from "@heroui/react";
+import { Button, Image, Checkbox, Link } from "@heroui/react";
 import React, { useState, useEffect, use } from "react";
 import GifImag from "@/assets/images/coin.gif";
 import Logo from "@/assets/images/logo.png";
@@ -53,11 +53,19 @@ export default function Login() {
   const handelAuth = (val: string) => {
     if (isSelected) {
       if (val == "login") {
-        navigate("/face");
+        navigate("/face", {
+          viewTransition: true,
+        });
       } else {
-        navigate("/invite");
+        navigate("/invite", {
+          viewTransition: true,
+        });
       }
     } else {
+      setIsOpenModule({
+        visible: true,
+        isLoginBtn: val,
+      });
       setStyleCssFlag(false);
     }
   };
@@ -65,15 +73,16 @@ export default function Login() {
     visible: false,
     isLoginBtn: "Login",
   });
-  const handelOpen = (e: any, val: string) => {
-    console.log(e);
-    e.stopPropagation();
-    setIsOpenModule({
-      visible: true,
-      isLoginBtn: val,
-    });
-  };
+  // const handelOpen = (e: any, val: string) => {
+  //   console.log(e);
+  //   e.stopPropagation();
+  //   setIsOpenModule({
+  //     visible: true,
+  //     isLoginBtn: val,
+  //   });
+  // };
   const [isSelected, setIsSelected] = useState(false);
+  // 文本颜色未选择显示红色
   const [styleCssFlag, setStyleCssFlag] = useState(true);
 
   useEffect(() => {
@@ -139,19 +148,13 @@ export default function Login() {
                 defaultSelected
                 color="primary"></Checkbox>
               勾选此框，即表示我已阅读并理解&nbsp;
-              <a
-                rel="noopener noreferrer"
-                target="_blank"
-                href="https://biomatrix.ai/privacy-policy/">
+              <Link href="#" underline="always" className={!styleCssFlag ? "text-red-600" : "text-self text-sm"}>
                 隐私政策
-              </a>
+              </Link>
               &nbsp;并同意接受&nbsp;
-              <a
-                rel="noopener noreferrer"
-                target="_blank"
-                href="https://biomatrix.ai/terms-of-service/">
+              <Link href="#" underline="always" className={!styleCssFlag ? "text-red-600" : "text-self text-sm"}>
                 条款和条件
-              </a>
+              </Link>
               <span className="text-red-500">*</span>
             </p>
           </div>

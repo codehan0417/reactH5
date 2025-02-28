@@ -1,5 +1,10 @@
-
-
+/*
+ * @Author: hanlirong
+ * @Date: 2025-02-17 15:36:50
+ * @LastEditors: Please set LastEditors
+ * @LastEditTime: 2025-02-28 10:49:46
+ * @Description: 请填写简介
+ */
 /**
  * 动态配置路由 ------ 这里是前端自己的动态路由
  *
@@ -17,60 +22,72 @@
  */
 export const dynamicRoutes: App.Route[] = [
   {
-    id: 'Home',
+    id: "Home",
     index: true,
-    component: 'home',
+    component: "home",
+    parent:'/database',
     handle: {
-      title: '首页',
-      roles: ['admin', 'other']
-    }
+      title: "首页",
+      roles: ["admin", "other"],
+    },
   },
   {
-    id: 'Home2',
-    path: 'home2',
-    component: 'home2',
+    id: "welcome",
+    // index: true,
+    protected:false,
+    parent:'/database',
+    component: "welcome",
     handle: {
-      title: '首页',
-      roles: ['admin', 'other']
+      title: "欢迎页",
+      // roles: ['admin', 'other']
+    },
+  },
+  {
+    id: "Home2",
+    path: "home2",
+    component: "home2",
+    handle: {
+      title: "首页",
+      roles: ["admin", "other"],
     },
     protected: false,
     children: [
       {
-        id: 'Home3',
-        path: 'home3',
-        component: 'home/router/home3'
-      }
-    ]
+        id: "Home3",
+        path: "home3",
+        component: "home/router/home3",
+      },
+    ],
   },
   {
-    id: 'User1',
+    id: "User1",
     index: true,
-    component: 'home2',
-    parent: '/user',
+    component: "home2",
+    parent: "/user",
     handle: {
-      title: 'user',
-      roles: ['admin', 'other']
-    }
-  },
-  {
-    id: 'User3',
-    path: 'user3',
-    component: 'home',
-    parent: '/user',
-    handle: {
-      title: 'user',
-      roles: ['admin', 'other']
-    }
-  },
-  {
-    id: 'User4',
-    path: 'user4',
-    component: 'home/router/home3',
-    parent: '/user',
-    handle: {
-      title: 'user',
-      roles: ['admin', 'other']
+      title: "user",
+      roles: ["admin", "other"],
     },
-    protected: false
-  }
+  },
+  {
+    id: "User3",
+    path: "user3",
+    component: "home",
+    parent: "/user",
+    handle: {
+      title: "user",
+      roles: ["admin", "other"],
+    },
+  },
+  {
+    id: "User4",
+    path: "user4",
+    component: "home/router/home3",
+    parent: "/user",
+    handle: {
+      title: "user",
+      roles: ["admin", "other"],
+    },
+    protected: false,
+  },
 ];

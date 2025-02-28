@@ -2,7 +2,7 @@
  * @Author: hanlirong
  * @Date: 2025-02-10 15:44:55
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2025-02-11 09:53:41
+ * @LastEditTime: 2025-02-28 11:48:46
  * @Description: 用户信息state
  */
 import { create } from "zustand";
@@ -77,10 +77,10 @@ export const useUserStore = create<Store & Actions>()(
 
         // Filter the persisted value. By default, everything is persisted.
         //筛选持久化存储的值,指定持久化存储的数据，默认全部存储
-        // partialize: state => ({
-        //   openId: state.openId,
-        //   token: state.token
-        // })
+        partialize: state => ({
+          // openId: state.openId,
+          token: state.token
+        })
       }
     ),
     // devtools配置
