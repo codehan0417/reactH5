@@ -1,47 +1,85 @@
-import { useEffect, useRef, useState } from "react";
-import * as faceapi from "face-api.js";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+// import * as faceapi from "face-api.js";
 import AuthFace from "@/assets/images/face_scan_black.gif";
+import * as vision from '@mediapipe/tasks-vision'
 import { useNavigate } from "react-router-dom";
 import { BackIcon } from "@/pages/face/index";
+import {Slider} from '@heroui/react'
 function FaceAuth() {
   const [tempAccount, setTempAccount] = useState<any>("");
   const [localUserStream, setLocalUserStream] = useState<any>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [faceApiLoaded, setFaceApiLoaded] = useState(false);
   const [loginResult, setLoginResult] = useState("PENDING");
-  const [imageError, setImageError] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
   const [counter, setCounter] = useState(5);
-  const [labeledFaceDescriptors, setLabeledFaceDescriptors] = useState<any>({});
+  const faceApiIntervalRef = useRef<any>(null);
+  const [initiall,setInitaill] =useState<boolean>(false)
+  const [isTextFaceNumber,setIsTextFaceNumber]=useState<number>(0)
+
+
+  // 获取vision参数
+  const { FaceLandmarker, DrawingUtils } = vision
+  // 初始化需要参数
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const faceApiIntervalRef = useRef<any>(null);
+  const drawingUtils = useRef<vision.DrawingUtils>(null);
+  const faceLandmarker = useRef<vision.FaceLandmarker>(null)
+ const faceDetectorRef=useRef<vision.FaceDetector>(null)
+ const [faceNumber, setFaceNumber] = useState<number>(0)
+
+  async function createFaceLandmarker() {
+   
+    // const FileSetResolver = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm')
+    const wasmBinaryPath = new URL('./vision_wasm_internal.wasm', import.meta.url).href
+    const wasmLoaderPath = new URL('./vision_wasm_internal.js', import.meta.url).href
+    const modelAssetPath = new URL('./vision_face_landmarker.task', import.meta.url).href
+    const modeFaceDetectorPath = new URL('./blaze_face_short_range.tflite', import.meta.url).href
+    faceLandmarker.current = await FaceLandmarker.createFromOptions(
+      {
+        wasmBinaryPath,
+        // wasmBinaryPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm/vision_wasm_internal.wasm',
+        wasmLoaderPath,
+        // wasmLoaderPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm/vision_wasm_internal.js',
+      },
+      {
+        runningMode: "VIDEO",
+        baseOptions: {
+          modelAssetPath,
+          // modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+          delegate: 'GPU',
+        },
+        // runningMode: runningMode,
+        outputFaceBlendshapes: true,
+        outputFacialTransformationMatrixes: true,
+        numFaces: 1,
+      },
+    )
+    faceDetectorRef.current = await vision.FaceDetector.createFromOptions(
+      {
+        wasmBinaryPath,
+        // wasmBinaryPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm/vision_wasm_internal.wasm',
+        wasmLoaderPath,
+        // wasmLoaderPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm/vision_wasm_internal.js',
+      },
+      {
+        runningMode: "VIDEO",
+        baseOptions: {
+          modelAssetPath:modeFaceDetectorPath,
+          // modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+          delegate: 'GPU',
+        }
+      },
+    )
+  }
+
+
 
   // 记录截取的照片次数
   const [photoNumber, setPhotoNumber] = useState<number>(0);
   // 存储图片base64
   const [imgSrc, setImgSrc] = useState<string>("");
-  // 是否张嘴判断
-  const [isOpenMouth, setIsOpenMouth] = useState<boolean>(false);
-  //上一次鼻子的水平坐标
-  const [lastNoseXaxis, setLastNoseXaxis] = useState<number>(0);
-  // 上一次鼻子的垂直坐标
-  const [lastNoseYaxis, setLastNoseYaxis] = useState<number>(0);
-  // 上一次嘴巴张开的高度
-  const [lastMouthOpenHeight, setLastMouthOpenHeight] = useState<number>(0);
 
-  // 张嘴次数
-  const [mouthNum, setMouthNum] = useState<number>(0);
-  // 时间范围
-  const [timeNode, setTimeNode] = useState<number>(0);
-  // 存储每次识别到人脸时左轮廓线中间点距离鼻点的距离
-  const [leftFaceDistance, setLeftFaceDistance] = useState<number[]>([]);
-  const [rightFaceDistance, setRightFaceDistance] = useState<number[]>([]);
-  // 向左向右转的次数
-  const [handCounter, setHandCounter] = useState<number>(0);
-  // 上一次鼻尖的坐标位置
-  const [noseXaxis, setNoseXaxis] = useState<number>(0);
-  const [noseYaxis, setNoseYaxis] = useState<number>(0);
-  const [lastDistanceEyeNorse, setLastDistanceEyeNorse] = useState<number>(0);
 
   // 提示文本
   const [tipTxt, setTipTxt] = useState<string>("");
@@ -51,55 +89,7 @@ function FaceAuth() {
 
   const navigate = useNavigate();
 
-  // if (!location?.state) {
-  //   return <Navigate to="/" replace={true} />;
-  // }
 
-  const loadModels = async () => {
-    // 加载face-api需要的模型
-    // const uri = import.meta.env.DEV ? "/models" : "/react-face-auth/models";
-    const uri = "/models";
-    Promise.all([
-      await faceapi.nets.tinyFaceDetector.loadFromUri(uri),
-      await faceapi.nets.ssdMobilenetv1.loadFromUri(uri),
-      await faceapi.nets.faceLandmark68Net.loadFromUri(uri),
-      await faceapi.nets.faceRecognitionNet.loadFromUri(uri),
-      await faceapi.nets.faceExpressionNet.loadFromUri(uri),
-    ])
-      .then(async () => {
-        const labeledFaceDescriptors = await loadLabeledImages();
-        setLabeledFaceDescriptors(labeledFaceDescriptors);
-      })
-      .then(() => setModelsLoaded(true))
-      .then(() => {
-        getLocalUserVideo();
-      })
-      .catch(() => {
-        // 模型加载失败，即将重试
-        loadModels();
-      });
-  };
-
-  // useEffect(() => {
-  //   setTempAccount(location?.state?.account);
-  // }, []);
-  useEffect(() => {
-    // if (tempAccount) {
-    loadModels();
-    // .then(async () => {
-    //   const labeledFaceDescriptors = await loadLabeledImages();
-    //   setLabeledFaceDescriptors(labeledFaceDescriptors);
-    // })
-    // .then(() => setModelsLoaded(true))
-    // .then(() => {
-    //   // 模型加载成功，正在开启摄像头检测人脸
-    //   getLocalUserVideo();
-    // });
-    // }
-  }, []);
-  // useEffect(()=>{
-
-  // })
 
   useEffect(() => {
     if (loginResult === "SUCCESS") {
@@ -125,16 +115,25 @@ function FaceAuth() {
       }
 
       return () => clearInterval(counterInterval);
+      
     }
     setCounter(5);
   }, [loginResult, counter]);
+  const hasGetUserMedia = () => {
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+  }
 
   const getLocalUserVideo = async () => {
+    if (!hasGetUserMedia()) {
+      setTipTxt('getUserMedia() is not supported by your browser')
+      return
+    }
     navigator.mediaDevices
       .getUserMedia({ audio: false, video: true })
       .then(stream => {
         if (videoRef.current) videoRef.current.srcObject = stream;
         setLocalUserStream(stream);
+        setTipTxt('正在检测中,请保持头部在摄像头范围内');
       })
       .catch(err => {
         console.error("error:", err);
@@ -144,7 +143,7 @@ function FaceAuth() {
   const getPhoto = async () => {
     const canvasContxt = canvasRef.current?.getContext("2d");
     setPhotoNumber(photoNumber => photoNumber++);
-    canvasContxt!.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+    canvasContxt!.clearRect(0, 0, videoRef.current!.width, videoRef.current!.height);
     canvasContxt!.drawImage(
       videoRef.current as HTMLVideoElement,
       0,
@@ -162,317 +161,110 @@ function FaceAuth() {
     setImgSrc(imgSrc);
     localStorage.setItem("userFace", imgSrc);
     localStorage.setItem("userInfo", "admin");
-    alert(imgSrc);
-    const labeledFaceDescriptors = await loadLabeledImages();
-    setLabeledFaceDescriptors(labeledFaceDescriptors);
+    // alert(imgSrc);
+    // const labeledFaceDescriptors = await loadLabeledImages();
+    // setLabeledFaceDescriptors(labeledFaceDescriptors);
     // 把该图片数据传给后端  做相关校验
     // }
-  };
-  // 张嘴判断
-  const openMouth = (positions: any) => {
-    // 63:上嘴唇底部中间点 67：下嘴唇顶部中间点
-    let mouth_distance = positions[67].y - positions[63].y;
-    let nose_distance_y = positions[31].y;
-    let nose_distance_x = positions[31].x;
-    // console.log(Math.abs(nose_distance_x-this.last_nose_distance_x))
-    if (
-      Math.abs(nose_distance_y - lastNoseYaxis) > 3 &&
-      Math.abs(lastNoseXaxis - nose_distance_x) > 4
-    ) {
-      setTipTxt("请保持头部不要晃动");
-    } else {
-      setTipTxt("请张张嘴巴");
-    }
-    setLastNoseYaxis(nose_distance_y);
-    setLastNoseXaxis(nose_distance_x);
-    if (
-      lastMouthOpenHeight > 0 &&
-      mouth_distance > 0 &&
-      // Math.abs() 返回一个绝对值
-      Math.abs(lastMouthOpenHeight - mouth_distance) > 6 &&
-      Math.abs(lastNoseYaxis - nose_distance_y) < 0.6 &&
-      Math.abs(lastNoseXaxis - nose_distance_x) < 0.6
-    ) {
-      // this.tipTxt='张嘴通过请再眨下眼睛'
-      setMouthNum(mouthNum => mouthNum++);
-      if (mouthNum > 2) {
-        console.log("张嘴通过");
-        setTipTxt("验证中，请稍等...");
-        setIsOpenMouth(true);
-        setLastMouthOpenHeight(0);
-        setMouthNum(0);
-      }
-    }
-    setLastMouthOpenHeight(mouth_distance);
-  };
+  }
 
-  // 判断摇头
-  const shakeHead = (positions: any) => {
-    if (positions.length == 0) {
-      return;
-    }
-    // 指定时间段内收集参数
-    if (
-      timeNode == 0 ||
-      (new Date().getTime() - timeNode > 500 && new Date().getTime() - timeNode < 10000)
-    ) {
-      // console.log(positions[62][0])
-      // 计算鼻尖和左边轮廓线中间点的水平差值
-      let l_diff_x = positions[31].x - positions[2].x;
-      // 计算鼻尖和左边轮廓线中间点的垂直差值
-      let l_diff_y = positions[31].y - positions[2].y;
-      // 计算鼻尖点与左边轮廓线中间点的距离
-      let l_distance = Math.pow(l_diff_x * l_diff_x + l_diff_y * l_diff_y, 0.5);
-      // 计算鼻尖和右边轮廓线中间点的水平差值
-      let r_diff_x = positions[16].x - positions[31].x;
-      // 计算鼻尖点和右边轮廓线中间点的垂直差值
-      let r_diff_y = positions[16].y - positions[31].y;
-      // 计算鼻尖与右边轮廓线中间点的距离
-      let r_distance = Math.pow(r_diff_x * r_diff_x + r_diff_y * r_diff_y, 0.5);
-      // 计算出左右轮廓线中间点的水平差值
-      // let lr_diff_x = positions[16].x - positions[2].x;
-      // // 计算出左右轮廓线中间点的垂直差值
-      // let lr_diff_y = positions[16].y - positions[2].y;
-      // // 计算出左右轮廓线两中间点的直线距离
-      // let lr_distance = Math.pow(lr_diff_x * lr_diff_x + lr_diff_y * lr_diff_y, 0.5);
-      // 计算出左右两轮廓线中间点距离鼻尖的差值
-      // 向左扭头l_distance < r_distance;
-      // 向右扭头l_distance > r_distance;
-      // let DIF = Math.abs( l_distance - r_distance);
-      setLeftFaceDistance(leftFaceDistance => [...leftFaceDistance, l_distance]);
-      setRightFaceDistance(rightFaceDistance => [...rightFaceDistance, r_distance]);
-      // 验证是否摇头
-      if (
-        (l_distance > r_distance &&
-          Math.abs(l_distance - leftFaceDistance[0]) > 20 &&
-          Math.abs(r_distance - rightFaceDistance[0]) > 30) ||
-        (l_distance < r_distance &&
-          Math.abs(l_distance - leftFaceDistance[0]) > 30 &&
-          Math.abs(r_distance - rightFaceDistance[0]) > 50)
-      ) {
-        setHandCounter(handCounter => handCounter++);
-      }
-      if (handCounter > 1) {
-        console.log("摇头已验证通过");
-        getPhoto();
-        setHandCounter(0);
-        setLeftFaceDistance([]);
-        setRightFaceDistance([]);
-      }
-      // 重置时间因素 记录当前数据为上一次的记录
-      setTimeNode(new Date().getTime());
-    }
-  };
 
-  // 判断眨眼
-  const twinkle = (positions: any) => {
-    // 38,39左眼皮上方两个点    42，41左眼皮下方两个点
-    // 44,45右眼皮上方两个点    48，47右眼皮下方两个点
-    // 计算左眼睛上下中间的距离
-    // let l_eye_distance_1 =  positions[38].y - positions[42].y;
-    // let l_eye_distance_2 =  positions[39].y - positions[41].y;
-    // let r_eye_distance_1 =  positions[48].y - positions[44].y;
-    // let r_eye_distance_2 =  positions[47].y - positions[45].y;
-    // console.log(l_eye_distance_1,l_eye_distance_2,r_eye_distance_1,r_eye_distance_2)
-    if (positions.length == 0) {
-      return;
-    }
-    if (timeNode == 0 || new Date().getTime() - timeNode > 10) {
-      let xdiff1 = positions[31].x - positions[38].x;
-      let ydiff1 = positions[31].y - positions[38].y;
-      // 计算出做左眼睛上眼皮某点距离鼻尖的距离
-      let dis_eye_norse1 = Math.pow(xdiff1 * xdiff1 + ydiff1 * ydiff1, 0.5);
-      let xdiff2 = positions[31].x - positions[45].x;
-      let ydiff2 = positions[31].y - positions[45].y;
-      // 计算出做左眼睛上眼皮某间点距离鼻尖的距离
-      let dis_eye_norse2 = Math.pow(xdiff2 * xdiff2 + ydiff2 * ydiff2, 0.5);
-      // 计算出左右两个眼睛距离同一处鼻尖的距离之和
-      let dis_eye_norse = dis_eye_norse1 + dis_eye_norse2;
-      // console.log(Math.abs(dis_eye_norse, this.last_dis_eye_norse));
-      if (
-        Math.abs(positions[31].x - noseXaxis) < 0.5 &&
-        Math.abs(positions[31].y - noseYaxis) < 0.5
-      ) {
-        // if ((Math.abs(dis_eye_norse - this.last_dis_eye_norse) > 0.8)) {
-        if (ydiff1 > 1000) {
-          setTipTxt("眼睛验证通过");
-          getPhoto();
-          setNoseXaxis(0);
-          setNoseYaxis(0);
-          setLastDistanceEyeNorse(0);
-          setTimeNode(0);
-          // 设置标志值
-          // isTwinkle = true;
-        }
-      }
-      setNoseXaxis(positions[31].x);
-      setNoseYaxis(positions[31].y);
-      setLastDistanceEyeNorse(dis_eye_norse);
-      setTimeNode(new Date().getTime());
-    }
-  };
-
+  const faceLandmarksRef = useRef<any>([])
+  const [lastVideoTime, setLastVideoTime] = useState<number>(-1)
+  const faceLandmarkerResult = useRef<vision.FaceLandmarkerResult>(null)
   const scanFace = async () => {
-    if (videoRef.current!.paused || videoRef.current!.ended || !modelsLoaded) {
-      setTimeout(() => scanFace());
+    // setModelsLoaded(true)
+    if (!faceLandmarker.current) {
+      setTipTxt('Wait for faceLandmarker to load before clicking!')
+      return
     }
-    const displaySize = {
-      width: videoWidth,
-      height: videoHeight,
-    };
-    faceapi.matchDimensions(canvasRef.current as HTMLCanvasElement, displaySize);
-    const faceApiInterval = setInterval(async () => {
-      const detections = await faceapi
-        .detectAllFaces(
-          videoRef.current as HTMLVideoElement,
-          new faceapi.TinyFaceDetectorOptions({ inputSize: 128 })
-        )
-        // 生成面部标志点
-        .withFaceLandmarks()
-        // 面部表情检测
-        .withFaceExpressions()
-        // 获取面部标识符
-        .withFaceDescriptors();
-      const resizedDetections = faceapi.resizeResults(detections, displaySize);
-      if (resizedDetections.length == 0) {
-        setTipTxt("未检测到人脸");
-      } else {
-        // 限定人脸在圆框中展示的位置
-        if (
-          resizedDetections[0].alignedRect.relativeBox.top > 0.55 ||
-          resizedDetections[0].alignedRect.relativeBox.left < 0.2 ||
-          resizedDetections[0].alignedRect.relativeBox.right > 0.8 ||
-          resizedDetections[0].alignedRect.relativeBox.bottom > 0.98
-        ) {
-          setTipTxt("请将脸对正中间");
-        } else {
-          if (photoNumber == 0) {
-            getPhoto();
-          }
-          // 请张张嘴巴
-          const landmarks = resizedDetections[0].landmarks;
-          const landmarkPositions = landmarks.positions;
-          // 或者得到各个轮廓的位置，
-          // 仅适用于68点面部标记(FaceLandmarks68)
-          // const jawOutline = landmarks.getJawOutline()
-          // const nose = landmarks.getNose()
-          // const mouth = landmarks.getMouth()
-          // const leftEye = landmarks.getLeftEye()
-          // const rightEye = landmarks.getRightEye()
-          // const leftEyeBbrow = landmarks.getLeftEyeBrow()
-          // const rightEyeBrow = landmarks.getRightEyeBrow()
-          if (!isOpenMouth) {
-            openMouth(landmarkPositions);
-            // 摇头
-            shakeHead(landmarkPositions);
-            // 眨眼睛 可以添加判断
-            twinkle(landmarkPositions);
-          }
-        }
-      }
-      if (isOpenMouth) {
-        // 截图
-        getPhoto();
-      } else {
-        setTimeout(() => scanFace());
-      }
-
-      // const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors);
-
-      // const results = resizedDetections.map(d =>
-      //   faceMatcher.findBestMatch(d.descriptor)
-      // );
-
-      // if (!canvasRef.current) {
-      //   return;
-      // }
-      // canvasRef.current.getContext("2d")!.clearRect(0, 0, videoWidth, videoHeight);
-      // faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
-      // faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
-
-      // if (results.length > 0 && tempAccount.id === results[0].label) {
-      //   setLoginResult("SUCCESS");
-      // } else {
-      //   setLoginResult("FAILED");
-      // }
-
-      if (!faceApiLoaded) {
-        setFaceApiLoaded(true);
-      }
-    }, 1000 / 15);
-    faceApiIntervalRef.current = faceApiInterval;
-  };
-
-  async function loadLabeledImages() {
-    if (!localStorage.getItem("userFace")) {
-      return null;
-    }
-    const descriptions = [];
-
-    let img;
-
-    try {
-      const imgPath = localStorage.getItem("userFace");
-      // tempAccount?.type === "CUSTOM"
-      //   ? tempAccount.picture
-      //   : // : import.meta.env.DEV
-      //     // ? `/temp-accounts/${tempAccount.picture}`
-      //     // : `/react-face-auth/temp-accounts/${tempAccount.picture}`;
-      //     `/temp-accounts/${tempAccount.picture}`;
-
-      img = await faceapi.fetchImage(imgPath as string);
-    } catch {
-      setImageError(true);
+    if (!faceDetectorRef.current) {
+      alert("Face Detector is still loading. Please try again..");
       return;
     }
-
-    const detections = await faceapi
-      .detectSingleFace(img)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (detections) {
-      descriptions.push(detections.descriptor);
+    const videoWidth = 300;
+    // setVideoLoaded(true);
+    const radio = videoRef.current!.videoHeight / videoRef.current!.videoWidth
+    // videoRef.current!.style.width = `${videoWidth}px`
+    // videoRef.current!.style.height = `${videoWidth * radio}px`
+    canvasRef.current!.style.width = `${videoWidth}px`
+    canvasRef.current!.style.height = `${videoWidth * radio}px`
+    canvasRef.current!.width = videoRef.current!.videoWidth
+    canvasRef.current!.height = videoRef.current!.videoHeight
+    // runningMode = 'VIDEO'
+    // await faceLandmarker.setOptions({ 'VIDEO' })
+    const nowInMs = Date.now()
+    if (lastVideoTime !== videoRef.current!.currentTime) {
+      setLastVideoTime(videoRef.current!.currentTime)
+      faceLandmarkerResult.current = faceLandmarker.current!.detectForVideo(videoRef.current!, nowInMs)
+      const detections = faceDetectorRef.current.detectForVideo(videoRef.current!, nowInMs)
+        .detections;
+        displayVideoDetections(detections)
+        
     }
+    
+    if (canvasRef.current) {
+      drawingUtils.current = new DrawingUtils(canvasRef.current?.getContext("2d")!)
+    }
+    faceLandmarkerResult.current!.faceLandmarks.forEach((landmarks) => {
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_TESSELATION, { color: '#C0C0C070', lineWidth: 1 })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE, { color: '#FF3030' })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW, { color: '#FF3030' })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LEFT_EYE, { color: '#30FF30' })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW, { color: '#30FF30' })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_FACE_OVAL, { color: '#E0E0E0' })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LIPS, { color: '#E0E0E0' })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_RIGHT_IRIS, { color: '#FF3030' })
+      drawingUtils.current!.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LEFT_IRIS, { color: '#30FF30' })
+    })
+   
+    // console.log(faceLandmarkerResult.current)
+    if (faceLandmarkerResult.current && faceLandmarkerResult.current!.faceBlendshapes?.length){ 
+      faceLandmarksRef.current = faceLandmarkerResult.current.faceBlendshapes[0].categories;
+      
+    }else{
+      faceLandmarksRef.current = []
+    }
+    setIsTextFaceNumber(faceLandmarksRef.current.length)
+    // detectFaceStatus(faceLandmarksRef.current)
+    // console.log(JSON.stringify(faceLandmarksRef.current))
+    window.requestAnimationFrame(scanFace)
+  };
 
-    // const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors);
-
-    // const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
-
-    // if (!canvasRef.current) {
-    //   return;
-    // }
-    // canvasRef.current.getContext("2d")!.clearRect(0, 0, videoWidth, videoHeight);
-    // faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
-    // faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
-
-    // if (results.length > 0 && tempAccount.id === results[0].label) {
-    //   setLoginResult("SUCCESS");
-    // } else {
-    //   setLoginResult("FAILED");
-    // }
-
-    return new faceapi.LabeledFaceDescriptors(tempAccount.id, descriptions);
+  const displayVideoDetections=(detections: any[])=> {
+    for (let detection of detections) {
+      setFaceNumber(()=>Math.round(parseFloat(detection.categories[0].score) * 100))  
+    }
   }
+  useEffect(()=>{
+    if(faceNumber>=98){
+      getPhoto()
+      setFaceNumber(100)
+    }
+    if(faceNumber!=0){
+      setInitaill(true);
+      setTipTxt('')
+    }else{
+      setInitaill(false);
+      
+    }
+  },[faceNumber])
 
-  if (imageError) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-[24px] max-w-[840px] mx-auto">
-        <h2 className="text-center text-3xl font-extrabold tracking-tight text-rose-700 sm:text-4xl">
-          <span className="block">
-            Upps! There is no profile picture associated with this account.
-          </span>
-        </h2>
-        <span className="block mt-4">
-          Please contact administration for registration or try again later.
-        </span>
-      </div>
-    );
-  }
+  useLayoutEffect(() => {
+    createFaceLandmarker().then(() => {
+      getLocalUserVideo()
+    })
+
+  }, [])
+  useEffect(()=>{
+    if(isTextFaceNumber==0){
+      setFaceNumber(0)
+      }
+  },[isTextFaceNumber])
 
   return (
     <>
-      <div className="h-screen">
+      <div className="h-screen box-border">
         <div className="flex p-3 pt-9  items-center justify-between text-2xl">
           <div>
             <BackIcon onClick={() => navigate(-1)} />
@@ -516,6 +308,14 @@ function FaceAuth() {
             </h2>
           )}
           <div>{tipTxt}</div>
+          <div>{faceNumber}</div>
+         {faceNumber!=0 && <Slider
+      aria-label="Player progress"
+      className="max-w-md"
+      color="foreground"
+      value={faceNumber}
+      hideThumb={true}
+    />}
           <div className="w-full">
             <div className="relative flex flex-col items-center p-[10px]">
               <video
@@ -525,17 +325,25 @@ function FaceAuth() {
                 height={videoHeight}
                 width={videoWidth}
                 onPlay={scanFace}
+                preload="auto"
+                loop
+                // controls 
+                controlsList="nodownload nofullscreen noplaybackrate"
+                playsInline
+                webkit-playsinline="true"
                 style={{
+                  // transform: "scaleX(-1)",
                   objectFit: "fill",
-                  height: "360px",
+                  // height: "360px",
                   borderRadius: "10px",
-                  display: localUserStream ? "block" : "none",
+                  display: localUserStream? "block" : "none",
                 }}
               />
               <canvas
                 ref={canvasRef}
                 style={{
                   position: "absolute",
+                  transform: "scaleX(-1)",
                   display: localUserStream ? "block" : "none",
                 }}
               />
@@ -558,11 +366,11 @@ function FaceAuth() {
                   </>
                 ) : (
                   <>
-                    <img
+                    {/* <img
                       alt="loading models"
                       // src={AuthIdle}
                       className="cursor-pointer my-8 mx-auto object-cover h-[272px]"
-                    />
+                    /> */}
                     <button
                       disabled
                       type="button"
