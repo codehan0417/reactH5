@@ -2,7 +2,7 @@
  * @Author: hanlirong
  * @Date: 2025-02-10 12:31:31
  * @LastEditors: Please set LastEditors
- * @LastEditTime: 2025-02-12 10:03:11
+ * @LastEditTime: 2025-02-26 12:58:27
  * @Description: 路由鉴权
  */
 
@@ -13,6 +13,7 @@ import { RouterProvider } from "react-router-dom";
 
 import r, { generateRouter } from "./router";
 import { usePermission, useSelector } from "./store";
+import LoadingNumber from "@/pages/components/loading.tsx";
 
 export default function App() {
   const [router, setRouter] = useState(r);
@@ -26,9 +27,9 @@ export default function App() {
 
   return (
     // <Suspense fallback={<Loading />}>
-  
-      <Suspense>
-        <RouterProvider router={router} />
-      </Suspense>
+
+    <Suspense fallback={<LoadingNumber />}>
+      <RouterProvider router={router} />
+    </Suspense>
   );
 }

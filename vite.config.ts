@@ -127,7 +127,8 @@ export default defineConfig(({ mode }) => {
       port: 7788,
       host: "0.0.0.0",
       open: false,
-      // https: false,
+      allowedHosts:['794529fc.r35.cpolar.top'],
+      // https: true,
       strictPort: false, // 为true若端口已被占用则会直接退出
       proxy: {
         "/api": {
@@ -153,7 +154,7 @@ export default defineConfig(({ mode }) => {
           }),
 
           PostCssPxToRem({
-            rootValue: 100, // 基准值 设计稿的宽度/10  // 75=750
+            rootValue: 37.5, // 基准值 设计稿的宽度/10  // 75=750
             // rootValue({ file }) {
             //   // 项目中使用的 antd官方社区的 antd-mobile 组件库。这里做了区分，如果样式文件命中有 antd-mobile 则以 375 样稿转化。这里不做区分，那么 antd-mobile 各组件样式会变形。
             //   return file.indexOf('antd-mobile') !== -1 ? 37.5 : 75
